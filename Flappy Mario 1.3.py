@@ -327,7 +327,7 @@ while True:
 
         pygame.display.update()
 
-
+# Termina aqui (testando)
 
 
 
