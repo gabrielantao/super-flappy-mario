@@ -61,5 +61,5 @@ class Vetor:
 
 
 
-
+#editado para testar a sincronização com o local...
 
