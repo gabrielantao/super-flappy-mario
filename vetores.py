@@ -52,14 +52,4 @@ class Vetor:
     def p_vetorial(self, vetor):
         return self.i*vetor.j - self.j*vetor.i
 
-    # calcula angulo em graus entre um vetor e o eixo +Ox
-    # a orientação horaria é positiva e anti-horaria negativa devido posicionamento dos eixos
-    # foi usada atan2 que retorna valores entre pi e -pi ver documentacao
-    # faz uma aproximação para nao obter valores com muitas casas decimais desnecessarias
-    def angulox(self):
-        return round( math.degrees(math.atan2(self.j,self.i)), 2 )
-
-
-
-#editado para testar a sincronização com o local...
 
