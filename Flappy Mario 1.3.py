@@ -1,5 +1,5 @@
 ﻿#-------------------------------------------------------------------------------
-# Name:        Flappy Mario v1.3
+# Name:        Flappy Mario v1.4
 # Purpose:
 #
 # Author:      Gabriel
@@ -13,321 +13,276 @@ import sys
 import random
 import pygame
 from pygame.locals import *
-from vetores import *
+from vector2d import *
 pygame.init()
 
-LARGURA = 1000
-ALTURA = 600
-BRANCO = (255,255,255)
-PRETO = (0,0,0)
-LACUNAX = 300 # espaço horizontal para que o sprite possa passar
-LACUNAY = 120 # espaço vertical para que o sprite possa passar
+WIDTH = 1000
+HEIGHT = 600
+WHITE = (255,255,255)
+BLACK = (0,0,0)
+GND_HEIGHT = 80 # altura do chao
+# TODO: alterar esses valoes para modular a dificuldade
+GAP_WIDTH = 300 # distancia entre dois tubos 
+GAP_HEIGHT = 120 # espaco vertical para que o sprite possa passar
 
 # cria o clock
 clock = pygame.time.Clock()
 
-# inicializa janela
-janela = pygame.display.set_mode((LARGURA, ALTURA))
-pygame.display.set_caption("Super Flappy Mario v1.3")
+# inicializa screen
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Super Flappy Mario v1.4")
 
-# carrega imagens e fonte
-fundo = pygame.image.load("images/parallax.png")
-solo  = pygame.image.load("images/solo.png")
-placar = pygame.image.load("images/placar.png")
-marioflappy = pygame.image.load("images/Super Flappy Mario TM.png")
-botao_start = pygame.image.load("images/start.png")
-mario_martelo = pygame.image.load("images/mario martelo.png")
-batida = pygame.image.load("images/efeito batida.png")
-get_ready = pygame.image.load("images/get ready.png")
-placar_gameover = pygame.image.load("images/placar game over.png")
-medalhas = pygame.image.load("images/medalhas.png")
-mario_sprite = pygame.image.load("images/mario sprite.png")
-assinatura = pygame.image.load("images/assinatura.png")
-tubo = pygame.image.load("images/tubo.png")
+# carrega imagens e large_font
+background = pygame.image.load("images/parallax.png")
+ground  = pygame.image.load("images/ground.png")
+score_img = pygame.image.load("images/mario_score.png")
+game_title = pygame.image.load("images/game_title.png")
+start_button = pygame.image.load("images/start_button.png")
+mario_hammer = pygame.image.load("images/mario_hammer.png")
+crush = pygame.image.load("images/crush.png")
+get_ready = pygame.image.load("images/get_ready.png")
+score_gameover = pygame.image.load("images/score_game_over.png")
+medals = pygame.image.load("images/medals.png")
+mario_sprite = pygame.image.load("images/mario_sprite.png")
+signature = pygame.image.load("images/signature.png")
+pipe_img = pygame.image.load("images/pipe.png")
 
-fonte = pygame.font.Font("fonts/Super Mario World font.ttf", 32)
-fonte2 = pygame.font.Font("fonts/Super Mario World font.ttf", 20)
+large_font = pygame.font.Font("fonts/Super_Mario_World.ttf", 32)
+small_font = pygame.font.Font("fonts/Super_Mario_World.ttf", 20)
 
 # cria vetores
-gravidade  = Vetor(0,1)
-velocidade = Vetor(0,0)
-scroll = Vetor(-5, 0)
+# TODO: remover necessidade de vetores 
+# TODO: colocar independencia das animacoes e deslocamentos (tempo fixo delta)
+gravity  = Vector(0, 1)
+scroll = Vector(-5, 0)
 
-# cria contadores para animações
-contador_martelo = 0
-
-
-# cria rect que detecta a colisão
-bloco = pygame.Rect(50,200,40,40)
-
-# variavel para posição do solo
-pos_solo = 0
-
-# cria lista de obstaculos (rects)
-lista_obstaculos = []
-
-#cria o modo em que o jogo está rodando
-# 1 modo inicial; 2 preparação para o jogo; 3 rodando jogo; 4 game over
-modo_jogo = 1
-
-# cria pontuação e record
-pontuacao = 0
-record = 0
-
-# função geadora de obstáculos
-def gera_obstaculos():
-    global lista_obstaculos
-    aleatorio = random.randrange(0, ALTURA-LACUNAY-80, 20)
-    obstaculo_cima = pygame.Rect(LARGURA, 0, 100, aleatorio)
-    if aleatorio != ALTURA-LACUNAY-80:
-        obstaculo_baixo = pygame.Rect(LARGURA, aleatorio+LACUNAY, 100, (ALTURA-(aleatorio+LACUNAY))-80)
-    else:
-        obstaculo_baixo = None
-    lista_obstaculos.append([obstaculo_cima, obstaculo_baixo])
-
-# desenha obstaculos
-def desenha_obstaculos():
-    global lista_obstaculos
-    for obstaculo in lista_obstaculos:
-##        pygame.draw.rect(janela, PRETO, obstaculo[0], 4) # obstaculo de cima
-##        pygame.draw.rect(janela, PRETO, obstaculo[1], 4) # obstaculo de baixo
-        janela.blit(pygame.transform.flip(tubo,False,True), obstaculo[0].topleft, (0,400-obstaculo[0].height,100, obstaculo[0].height))
-        janela.blit(tubo, obstaculo[1].topleft,(0, 0, 100, obstaculo[1].height))
-
-
-# movimenta os obstaculos
-def movimenta_obstaculos():
-    global lista_obstaculos
-    for obstaculo in lista_obstaculos:
-        obstaculo[0].x += scroll.i # obstaculo de cima
-        obstaculo[1].x += scroll.i # obstaculo de baixo
-
-# detectar colisão
-def detecta_colisao():
-    global lista_obstaculos, modo_jogo
-    if bloco.colliderect(lista_obstaculos[0][0]) == True or bloco.colliderect(lista_obstaculos[0][1]):
-        modo_jogo = 4
-
-
-# atualiza a pontuação e desenha o placar
-def atualiza_pontuacao():
-    global lista_obstaculos, pontuacao, fonte
-    if lista_obstaculos[0][0].x == -50:
-        pontuacao += 1
-    janela.blit(placar, (LARGURA/2-50,10))
-    texto = fonte.render(str(pontuacao), True, BRANCO)
-    janela.blit(texto, (LARGURA/2-20,28))
-
-# faz scroll do solo e imprime na tela
- # faz scroll do solo se a pos_solo for menor que sua largura entao seta ela pra zero e recomeça
-def scroll_solo():
-    global pos_solo, scroll
-    pos_solo += scroll.i
-    if pos_solo < -LARGURA:
-        pos_solo = 0
-    janela.blit(solo,  (0+pos_solo,459))
-    janela.blit(solo,  (LARGURA+pos_solo,459))
-
-# reseta parametros
-def reset():
-    global bloco, pos_solo, lista_obstaculos, pontuacao, velocidade
-    bloco.y = 200
-    pos_solo = 0
-    lista_obstaculos = []
-    pontuacao = 0
-    velocidade = Vetor(0,0)
-
-# desenha o sprite adequado do mario trocando-o de acordo com a velocidade do rect
-def desenha_mario(frame = None):
-    global mario_sprite, velocidade
-    # se for passado um frame especifico do mario_sprite desenha se nao for desenha de acordo com a velocidade
-    if frame != None:
-        janela.blit(mario_sprite,(bloco.left, bloco.top-20), (40*frame,0,40,60))
-    else:
-        if velocidade.j <= 0:
-            janela.blit(mario_sprite,(bloco.left, bloco.top-20), (0,0,40,60))
-        if 0 < velocidade.j < 15:
-            janela.blit(mario_sprite,(bloco.left, bloco.top-20), (40,0,40,60))
-        if 15 < velocidade.j < 24:
-            janela.blit(mario_sprite,(bloco.left, bloco.top-20), (80,0,40,60))
-        if velocidade.j > 24:
-            janela.blit(mario_sprite,(bloco.left, bloco.top-20), (120,0,40,60))
-
-while True:
-    clock.tick(30)
-    for event in pygame.event.get():
-        if event.type == QUIT:
-            pygame.quit()
-            sys.exit()
-        if event.type == KEYDOWN:
-            # Gerencia a troca de modos de jogo quando o espaço é apertado
-            if event.key == K_SPACE:
-                if modo_jogo   == 1:
-                    modo_jogo = 2
-                elif modo_jogo == 2:
-                    modo_jogo = 3
-                elif modo_jogo == 3:
-                    velocidade.j = -12
-            # Gerencia a troca de modos de jogo quando o enter é apertado
-            if event.key == K_RETURN or event.key == K_KP_ENTER :
-                if modo_jogo   == 1:
-                    modo_jogo = 2
-                elif modo_jogo == 2:
-                    modo_jogo = 3
-                elif modo_jogo == 4:
-                    modo_jogo = 1
-                    reset()
-    #-------------------------------------------------------------------------------------------
-    # GERENCIA OS MODOS DE JOGO!!!
-    # 1 modo inicial; 2 preparação para o jogo; 3 rodando jogo; 4 game over
-
-#---------------------------------
-    # MODO DE JOGO 1: MODO INICIAL
-    if modo_jogo == 1: #
-        janela.fill(BRANCO)
-        janela.blit(fundo, (0,0))
-        # faz scroll do solo se a pos_solo for menor que sua largura entao seta ela pra zero e recomeça
-        pos_solo += scroll.i
-        if pos_solo < -LARGURA:
-            pos_solo = 0
-        # desenha os dois solos
-        janela.blit(solo,  (0+pos_solo,459))
-        janela.blit(solo,  (LARGURA+pos_solo,459))
-        # desenha o logo e o botao
-        janela.blit(marioflappy,  (50,50))
-        janela.blit(botao_start, (LARGURA/2-50, 400))
-
-        # assinatura
-        janela.blit(assinatura,(250,550))
-
-
-        pygame.display.update()
-
-#-------------------------------------------------
-    # MODO DE JOGO 2: MODO DE INSTRUÇÃO (GET READY)
-    elif modo_jogo == 2:
-        janela.fill(BRANCO)
-        janela.blit(fundo, (0,0))
-        # faz scroll do solo se a pos_solo for menor que sua largura entao seta ela pra zero e recomeça
-        pos_solo += scroll.i
-        if pos_solo < -LARGURA:
-            pos_solo = 0
-        # desenha os dois solos
-        janela.blit(solo,  (0+pos_solo,459))
-        janela.blit(solo,  (LARGURA+pos_solo,459))
-        # desenha animação com mario batendo e, as instruções e mario voando parado.
-        contador_martelo += 1
-        if contador_martelo > 25 :
-            contador_martelo = 0
-        if contador_martelo % 5:
-            i = contador_martelo/5
-        janela.blit(get_ready,  (300,100))
-        if i == 4:
-            pygame.draw.rect(janela, (255,0,0), (450,410,90,20),4)
-            janela.blit(batida,  (430,370))
-##        pygame.draw.rect(janela, PRETO, (bloco.left, bloco.top, bloco.width, bloco.height),3)
-        desenha_mario()
-        janela.blit(mario_martelo,  (420,390), (60*i,0,60,100))
-
-        pygame.display.update()
-
-#-----------------------------------------
-    # MODO DE JOGO 3: RODANDO O JOGO EM SI
-    elif modo_jogo == 3:
-        janela.fill(BRANCO)
-
-        # checa os limites
-        if (bloco.bottom + velocidade.j) >= (ALTURA - 80): # limite de baixo
-            velocidade.j = 0
-            bloco.bottom = ALTURA - 80
-            modo_jogo = 4 # troca o modo de jogo (game over)
-        elif (bloco.top + velocidade.j) <= 0: # limite de cima
-            velocidade.j = 0
+class Game:
+    """
+    1 modo inicial; 
+    2 preparacao para o jogo (get ready); 
+    3 rodando jogo; 
+    4 game over (placar e medalha)
+    """
+    def __init__(self):
+        self.pipe_list = []
+        self.game_mode = 1
+        self.score = 0    #pontos
+        self.best_score = 0 
+        self.ground_pos = 0
+        self.mario_rect = pygame.Rect(50,200,40,40)  
+        self.mario_speed = Vector(0, 0)  
+        
+    # cria os rects dos tubos
+    def create_pipe(self):
+        width = pipe_img.get_width()
+        height = random.randrange(0, HEIGHT - GAP_HEIGHT, 20)
+        if height == 0:
+            up_pipe = None
+            down_pipe = pygame.Rect(WIDTH, height + GAP_HEIGHT, width - 4, HEIGHT - height - GAP_HEIGHT - GND_HEIGHT)
+        elif 0 < height < (HEIGHT - GAP_HEIGHT):
+            up_pipe = pygame.Rect(WIDTH, 0, width - 4, height)
+            down_pipe = pygame.Rect(WIDTH, height + GAP_HEIGHT, width - 4, HEIGHT - height - GAP_HEIGHT - GND_HEIGHT)
+        elif height == (HEIGHT - GAP_HEIGHT):
+            up_pipe = pygame.Rect(WIDTH, 0, width - 4, height)
+            down_pipe = None
+        self.pipe_list.append([up_pipe, down_pipe])
+    
+    # movimenta os tubos
+    def scroll_pipe(self):
+        for pipe in self.pipe_list:
+            pipe[0].x += scroll.i 
+            pipe[1].x += scroll.i 
+            
+    # desenha os tubos
+    def draw_pipe(self):
+        width = pipe_img.get_width()
+        height = pipe_img.get_height()
+        for pipe in self.pipe_list:
+            screen.blit(pygame.transform.flip(pipe_img, False, True), pipe[0].topleft, (0, height - pipe[0].height, width, pipe[0].height))
+            screen.blit(pipe_img, pipe[1].topleft, (0, 0, width, pipe[1].height))
+       
+    # detectar colisao com o primeiro da lista
+    # TODO: juntar os condicionais em um so return 
+    def collision_detect(self):
+        # colide com um tubo 
+        if self.mario_rect.colliderect(self.pipe_list[0][0]) or self.mario_rect.colliderect(self.pipe_list[0][1]):
+            return True
+        # colide com chao
+        if (self.mario_rect.bottom + self.mario_speed.j) >= (HEIGHT - GND_HEIGHT): 
+            return True
+        return False
+    
+    # atualiza a pontos e desenha o score
+    def update_score(self):
+        if self.pipe_list[0][0].x == -50: #conseguiu passar pelo tubo
+            self.score += 1
+       
+    # desenha pontos
+    def draw_score(self):
+        screen.blit(score_img, (WIDTH/2  - 50, 10))
+        texto = large_font.render(str(self.score), True, WHITE)
+        screen.blit(texto, (WIDTH/2 - 20, 28))
+        
+    # desliza o ground e parallax
+    def scroll_ground(self):
+        self.ground_pos += scroll.i
+        if self.ground_pos < -WIDTH:
+            self.ground_pos = 0
+        
+    # desenha o chao
+    def draw_ground(self):
+        screen.blit(ground,  (self.ground_pos, 460)) 
+        screen.blit(ground,  (WIDTH + self.ground_pos, 460))
+ 
+    # desenha o sprite adequado do mario trocando-o de acordo com a speed do rect
+    def draw_mario(self, live=True):
+        if live:
+            if self.mario_speed.j <= 0:
+                screen.blit(mario_sprite, (self.mario_rect.left, self.mario_rect.top-20), (0,0,40,60))
+            if 0 < self.mario_speed.j < 15:
+                screen.blit(mario_sprite, (self.mario_rect.left, self.mario_rect.top-20), (40,0,40,60))
+            if 15 < self.mario_speed.j < 24:
+                screen.blit(mario_sprite, (self.mario_rect.left, self.mario_rect.top-20), (80,0,40,60))
+            if self.mario_speed.j > 24:
+                screen.blit(mario_sprite, (self.mario_rect.left, self.mario_rect.top-20), (120,0,40,60))
         else:
-            velocidade = velocidade + gravidade
-            bloco.top += velocidade.j  # atualiza o valor da velocidade e da posiçao do bloco
+            screen.blit(mario_sprite, (self.mario_rect.left, self.mario_rect.top-20), (160,0,40,60))
+            
+    # desenha o parallax 
+    def draw_parallax(self):
+        screen.blit(background, (0, 0))
+        
+    # reseta parametros
+    def reset(self):
+        self.mario_rect.y = 200
+        self.ground_pos = 0
+        self.pipe_list = []
+        self.score = 0
+        self.mario_speed = Vector(0, 0)
+        
+    def start(self):
+        hammer_counter = 0
+        while True:
+            clock.tick(30)
+            screen.fill(WHITE)
+            for event in pygame.event.get():
+                if event.type == QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == KEYDOWN:
+                    # Gerencia a troca de modos de jogo quando o espaco eh apertado
+                    if event.key == K_SPACE:
+                        if self.game_mode   == 1:
+                            self.game_mode = 2
+                        elif self.game_mode == 2:
+                            self.game_mode = 3
+                        elif self.game_mode == 3:
+                            self.mario_speed += Vector(0, -14)
+                    # Gerencia a troca de modos de jogo quando o enter eh apertado
+                    if event.key == K_RETURN or event.key == K_KP_ENTER :
+                        if self.game_mode == 1:
+                            self.game_mode = 2
+                        elif self.game_mode == 2:
+                            self.game_mode = 3
+                        elif self.game_mode == 4:
+                            self.game_mode = 1
+                            self.reset()
+        #-----------------------------------------------------------------------
+        # GERENCIA OS MODOS DE JOGO
+        # 1 modo inicial; 2 preparacao para o jogo; 3 rodando jogo; 4 game over
+        #-----------------------------------------------------------------------
+            # MODO DE JOGO 1: MODO INICIAL
+            if self.game_mode == 1: 
+                self.draw_parallax()
+                self.draw_ground()
+                self.scroll_ground()              
+                # desenha o titulo, o botao e assinatura
+                screen.blit(game_title,  (50, 50))
+                screen.blit(start_button, (WIDTH/2 - 50, 400))
+                screen.blit(signature, (250, 550))
+        
+            # MODO DE JOGO 2: PREPARACAO (GET READY)
+            elif self.game_mode == 2:
+                self.draw_parallax()
+                self.draw_ground()
+                self.draw_mario()
+                self.scroll_ground()
+                # desenha instrucoes
+                screen.blit(get_ready,  (300, 100))
+                # desenha animacao do mario                                   
+                if hammer_counter > 25:
+                    ###pygame.draw.rect(screen, (255,0,0), (450,410,90,20), 4)
+                    screen.blit(crush,  (430, 370))
+                    hammer_counter = 0
+                screen.blit(mario_hammer,  (420, 390), (60*(hammer_counter//5), 0, 60, 100))
+                hammer_counter += 1
+        
+            # MODO DE JOGO 3: RODANDO O JOGO EM SI
+            elif self.game_mode == 3:
+                # TODO: AQUI MUDAR OS VALORES DAS DISTANCIAS PARA MODULAR A DIFICULDADE
+                # gera obstaculos 
+                if len(self.pipe_list) == 0 or self.pipe_list[-1][0].x == (WIDTH - GAP_WIDTH):
+                    self.create_pipe()
+                # remove obstaculos que 
+                if self.pipe_list[0][0].x < -pipe_img.get_width():
+                    self.pipe_list.remove(self.pipe_list[0])
+                self.draw_parallax()
+                self.draw_pipe()
+                self.draw_ground()
+                self.draw_mario() 
+                # desenha placar
+                screen.blit(score_img, (WIDTH/2 - 50, 10))
+                text = large_font.render(str(self.score), True, WHITE)
+                screen.blit(text, (WIDTH/2 - 20, 28))
+                self.scroll_ground()
+                self.scroll_pipe()
+                self.update_score()
+                # atualiza posicao do mario e do rect 
+                self.mario_speed += gravity
+                self.mario_rect.top += self.mario_speed.j
+                # restricao do limite superior
+                if (self.mario_rect.top + self.mario_speed.j) <= 0: 
+                    self.mario_speed = Vector(0, 0)
+                if self.collision_detect():
+                    self.game_mode = 4
+        
+            # MODO DE JOGO 4: TELA DE PONTUACAO E GAME OVER
+            elif self.game_mode == 4:
+                self.draw_parallax()
+                self.draw_pipe()
+                self.draw_ground()
+                self.draw_mario(False)
+                # quando a animacao acaba desenha game over e o score
+                if self.mario_rect.bottom >= HEIGHT - GND_HEIGHT:
+                    # para o personagem no chao
+                    self.mario_speed = 0
+                    self.mario_rect.bottom = HEIGHT - GND_HEIGHT
+                    # desenha o score
+                    screen.blit(score_gameover,  (WIDTH/2 - 200, 100))
+                    # mostra o score e o best score
+                    text = large_font.render(str(self.score), True, BLACK)
+                    screen.blit(text, (600, 210))
+                    if self.score > self.best_score:
+                        self.best_score = self.score
+                    text = large_font.render(str(self.best_score), True, BLACK)
+                    screen.blit(text, (600, 290))
+                    text = small_font.render("press enter to play again", True, BLACK)
+                    screen.blit(text, (300, 550))
+                    # mostra medalha correspondente 20, 40, 60, 80
+                    # TODO: mecher na modulacao da dificuldade (sistema de recompensa)
+                    if self.score > 20 : #bronze
+                        screen.blit(medals, (340, 225), (0,0,80,100))
+                    if self.score > 40: #prata
+                        screen.blit(medals, (340, 225), (80,0,80,100))
+                    if self.score > 60: #ouro
+                        screen.blit(medals, (340, 225), (160,0,80,100))
+                    if self.score > 80: #diamante
+                        screen.blit(medals, (340, 225), (240,0,80,100))
+                else:
+                    self.mario_speed += gravity
+                    self.mario_rect.top += self.mario_speed.j
+            pygame.display.update()
 
-        # desenha fundo
-        janela.blit(fundo, (0,0))
-
-        # gera, desenha, remove e movimenta obstaculos e detecta colisões.
-        if len(lista_obstaculos) == 0 or lista_obstaculos[-1][0].x == (LARGURA-LACUNAX):
-            gera_obstaculos()
-        if lista_obstaculos[0][0].x < -100: #remover os obstaculos que sairem da tela pela esquerda (fila)
-            lista_obstaculos.remove(lista_obstaculos[0])
-        desenha_obstaculos()
-        movimenta_obstaculos()
-        detecta_colisao()
-        atualiza_pontuacao()
-
-
-        # desenha um rect para simular a fisica
-        desenha_mario()
-
-        # faz scroll do solo se a pos_solo for menor que sua largura entao seta ela pra zero e recomeça
-        pos_solo += scroll.i
-        if pos_solo < -LARGURA:
-            pos_solo = 0
-        janela.blit(solo,  (0+pos_solo,459))
-        janela.blit(solo,  (LARGURA+pos_solo,459))
-
-        pygame.display.update()
-
-#--------------------------------------------------
-    # MODO DE JOGO 4: TELA DE PONTUAÇÃO E GAME OVER
-    elif modo_jogo == 4:
-        janela.fill(BRANCO)
-
-        # faz animação quando o mario perde
-        # checa os limites
-        if (bloco.bottom + velocidade.j) >= (ALTURA - 80): # limite de baixo
-            velocidade.j = 0
-            bloco.bottom = ALTURA - 80
-        else:
-            velocidade = velocidade + gravidade
-            bloco.top += velocidade.j # atualiza o valor da velocidade e da posiçao do bloco
-
-        # desenha fundo
-        janela.blit(fundo, (0,0))
-
-        # desenha obstaculos onde estavam antes de perder
-        desenha_obstaculos()
-
-        # desenha o solo na mesma posição que parou anteriormente
-        janela.blit(solo,  (0+pos_solo,459))
-        janela.blit(solo,  (LARGURA+pos_solo,459))
-
-        # desenha personagem a partir da posição do rect bloco
-        desenha_mario(4)
-
-        # quando a animação desenha game over e o placar
-        if bloco.bottom == ALTURA - 80:
-            # desenha o placar
-            janela.blit(placar_gameover,  (LARGURA/2-200,100))
-
-            # mostra o score e o best score
-            texto = fonte.render(str(pontuacao), True, PRETO)
-            janela.blit(texto, (600,210))
-            if pontuacao > record:
-                record = pontuacao
-            texto = fonte.render(str(record), True, PRETO)
-            janela.blit(texto, (600,290))
-            texto = fonte2.render("press enter to play again", True, PRETO)
-            janela.blit(texto, (300,550))
-
-            # mostra medalha correspondente 20, 50, 100, 150
-            if pontuacao > 20 :
-                janela.blit(medalhas, (340,225), (0,0,80,100))
-            if pontuacao > 50:
-                janela.blit(medalhas, (340,225), (80,0,80,100))
-            if pontuacao > 100:
-                janela.blit(medalhas, (340,225), (160,0,80,100))
-            if pontuacao > 150:
-                janela.blit(medalhas, (340,225), (240,0,80,100))
-
-        pygame.display.update()
-
-# Termina aqui (testando)
-
-
-
+if __name__ == "__main__":
+    game = Game()
+    game.start()
