@@ -11,6 +11,7 @@
 
 import sys
 import random
+import csv
 import pygame
 from pygame.locals import *
 pygame.init()
@@ -20,8 +21,8 @@ HEIGHT = 600
 WHITE = (255,255,255)
 BLACK = (0,0,0)
 GND_HEIGHT = 80 # altura do chao
-# TODO: alterar esses valoes para modular a dificuldade
-GAP_WIDTH = 300 # distancia entre dois tubos 
+# TODO: alterar quando modular o delta tempo (time-based)
+GRAVITY = 1 # valor da gravidade 
 
 # cria o clock
 clock = pygame.time.Clock()
@@ -52,8 +53,6 @@ large_font = pygame.font.Font("fonts/Super_Mario_World.ttf", 32)
 small_font = pygame.font.Font("fonts/Super_Mario_World.ttf", 20)
 
 # cria vetores
-# TODO: colocar independencia das animacoes e deslocamentos (tempo fixo delta)
-gravity = 1
 scroll = -5
 
 class Game:
@@ -73,27 +72,39 @@ class Game:
         self.mario_speed = 0  
         self.level = 0 
         
-    # controla criacao e remocao dos rects dos tubos
-    # obs: modula dificuldade
+    # cria dos rects dos tubos
+    # obs: modula gaps (vertical e horizontal)
     def create_pipe(self):
         if self.level == 0:
-            gap_width = 400
+            self.gap_width = 400
             gap_height = 200 
         elif self.level == 1:
-            gap_width = 300
+            self.gap_width = 300
             gap_height = 140
         elif self.level == 2:
-            gap_width = random.randrange(250, 401, 50)
+            self.gap_width = random.randrange(250, 401, 50)
             gap_height = 140
         elif self.level == 3:
-            gap_width = random.randrange(200, 301, 50)
+            self.gap_width = random.randrange(200, 301, 50)
             gap_height = random.randrange(120, 201, 40)
         width = pipe_img.get_width()
         height = random.randrange(0, HEIGHT - gap_height, 20)
         up_pipe = pygame.Rect(WIDTH, 0, width, height)
         down_pipe = pygame.Rect(WIDTH, height + gap_height, width, HEIGHT - height - gap_height - GND_HEIGHT)
         self.pipe_list.append([up_pipe, down_pipe])
-    
+
+    # seleciona velocidade dos tubos
+    # obs: modula velocidade
+    # TODO: ativar ele no loop de controle de selecao de dificuldade
+    # TODO: ajustar valores da velocidade (-1,-2,-3) 
+    def set_scroll_speed(self):
+        if self.level == 0 or self.level == 1:
+            self.scroll_speed = -1
+        elif self.level == 2:
+            self.scroll_speed = -2
+        elif self.level == 3:
+            self.scroll_speed = -3
+            
     # movimenta os tubos
     def scroll_pipe(self):
         for pipe in self.pipe_list:
@@ -175,16 +186,17 @@ class Game:
                     pygame.quit()
                     sys.exit()
                 if event.type == KEYDOWN:
-                    # Gerencia a troca de modos de jogo quando o espaco eh apertado
+                    # gerencia a troca de modos de jogo quando o espaco eh apertado
                     if event.key == K_SPACE:
                         if self.game_mode == 2:
                             self.game_mode = 3
                         elif self.game_mode == 3:
                             self.mario_speed -= 13
-                    # Gerencia a troca de modos de jogo quando o enter eh apertado
+                    # gerencia a troca de modos de jogo quando o enter eh apertado
                     if event.key == K_RETURN or event.key == K_KP_ENTER :
                         if self.game_mode == 1:
                             self.level = cursor1_pos
+                            self.set_scroll_speed()
                             self.game_mode = 2
                         elif self.game_mode == 4:
                             if cursor2_pos == 0: #PLAY AGAIN? <YES>
@@ -240,7 +252,7 @@ class Game:
                 # TODO: AQUI MUDAR OS VALORES DAS DISTANCIAS PARA MODULAR A DIFICULDADE
                 # TODO: ajustar os criterios as medidas de como adiciona os tubos 
                 # gera obstaculos 
-                if len(self.pipe_list) == 0 or self.pipe_list[-1][0].x == (WIDTH - GAP_WIDTH):
+                if len(self.pipe_list) == 0 or self.pipe_list[-1][0].x == (WIDTH - self.gap_width):
                     self.create_pipe()
                 # remove obstaculos que 
                 if self.pipe_list[0][0].x < -pipe_img.get_width():
@@ -257,7 +269,7 @@ class Game:
                 self.scroll_pipe()
                 self.update_score()
                 # atualiza posicao do mario e do rect 
-                self.mario_speed += gravity
+                self.mario_speed += GRAVITY
                 self.mario_rect.top += self.mario_speed
                 # restricao do limite superior
                 if (self.mario_rect.top + self.mario_speed) <= 0: 
@@ -301,7 +313,7 @@ class Game:
                     screen.blit(play_again, (300, 400))
                     screen.blit(cursor_img, (580, 405 + 30*cursor2_pos))
                 else:
-                    self.mario_speed += gravity
+                    self.mario_speed += GRAVITY
                     self.mario_rect.top += self.mario_speed
             pygame.display.update()
 
