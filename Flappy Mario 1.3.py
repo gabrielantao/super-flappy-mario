@@ -13,7 +13,7 @@ import sys
 import random
 import pygame
 from pygame.locals import *
-from vector2d import *
+###from vector2d import *
 pygame.init()
 
 WIDTH = 1000
@@ -51,10 +51,9 @@ large_font = pygame.font.Font("fonts/Super_Mario_World.ttf", 32)
 small_font = pygame.font.Font("fonts/Super_Mario_World.ttf", 20)
 
 # cria vetores
-# TODO: remover necessidade de vetores 
 # TODO: colocar independencia das animacoes e deslocamentos (tempo fixo delta)
-gravity  = Vector(0, 1)
-scroll = Vector(-5, 0)
+gravity = 1
+scroll = -5
 
 class Game:
     """
@@ -70,7 +69,7 @@ class Game:
         self.best_score = 0 
         self.ground_pos = 0
         self.mario_rect = pygame.Rect(50,200,40,40)  
-        self.mario_speed = Vector(0, 0)  
+        self.mario_speed = 0  
         
     # cria os rects dos tubos
     def create_pipe(self):
@@ -90,8 +89,8 @@ class Game:
     # movimenta os tubos
     def scroll_pipe(self):
         for pipe in self.pipe_list:
-            pipe[0].x += scroll.i 
-            pipe[1].x += scroll.i 
+            pipe[0].x += scroll 
+            pipe[1].x += scroll 
             
     # desenha os tubos
     def draw_pipe(self):
@@ -102,16 +101,12 @@ class Game:
             screen.blit(pipe_img, pipe[1].topleft, (0, 0, width, pipe[1].height))
        
     # detectar colisao com o primeiro da lista
-    # TODO: juntar os condicionais em um so return 
     def collision_detect(self):
-        # colide com um tubo 
-        if self.mario_rect.colliderect(self.pipe_list[0][0]) or self.mario_rect.colliderect(self.pipe_list[0][1]):
-            return True
-        # colide com chao
-        if (self.mario_rect.bottom + self.mario_speed.j) >= (HEIGHT - GND_HEIGHT): 
-            return True
-        return False
-    
+        # colide com um tubo (cima, baixo) e chao
+        return self.mario_rect.colliderect(self.pipe_list[0][0]) or \
+        self.mario_rect.colliderect(self.pipe_list[0][1]) or \
+        (self.mario_rect.bottom + self.mario_speed) >= (HEIGHT - GND_HEIGHT)
+         
     # atualiza a pontos e desenha o score
     def update_score(self):
         if self.pipe_list[0][0].x == -50: #conseguiu passar pelo tubo
@@ -125,7 +120,7 @@ class Game:
         
     # desliza o ground e parallax
     def scroll_ground(self):
-        self.ground_pos += scroll.i
+        self.ground_pos += scroll
         if self.ground_pos < -WIDTH:
             self.ground_pos = 0
         
@@ -137,13 +132,13 @@ class Game:
     # desenha o sprite adequado do mario trocando-o de acordo com a speed do rect
     def draw_mario(self, live=True):
         if live:
-            if self.mario_speed.j <= 0:
+            if self.mario_speed <= 0:
                 screen.blit(mario_sprite, (self.mario_rect.left, self.mario_rect.top-20), (0,0,40,60))
-            if 0 < self.mario_speed.j < 15:
+            if 0 < self.mario_speed < 15:
                 screen.blit(mario_sprite, (self.mario_rect.left, self.mario_rect.top-20), (40,0,40,60))
-            if 15 < self.mario_speed.j < 24:
+            if 15 < self.mario_speed < 24:
                 screen.blit(mario_sprite, (self.mario_rect.left, self.mario_rect.top-20), (80,0,40,60))
-            if self.mario_speed.j > 24:
+            if self.mario_speed > 24:
                 screen.blit(mario_sprite, (self.mario_rect.left, self.mario_rect.top-20), (120,0,40,60))
         else:
             screen.blit(mario_sprite, (self.mario_rect.left, self.mario_rect.top-20), (160,0,40,60))
@@ -158,7 +153,7 @@ class Game:
         self.ground_pos = 0
         self.pipe_list = []
         self.score = 0
-        self.mario_speed = Vector(0, 0)
+        self.mario_speed =  0
         
     def start(self):
         hammer_counter = 0
@@ -177,7 +172,7 @@ class Game:
                         elif self.game_mode == 2:
                             self.game_mode = 3
                         elif self.game_mode == 3:
-                            self.mario_speed += Vector(0, -14)
+                            self.mario_speed -= 14
                     # Gerencia a troca de modos de jogo quando o enter eh apertado
                     if event.key == K_RETURN or event.key == K_KP_ENTER :
                         if self.game_mode == 1:
@@ -239,10 +234,10 @@ class Game:
                 self.update_score()
                 # atualiza posicao do mario e do rect 
                 self.mario_speed += gravity
-                self.mario_rect.top += self.mario_speed.j
+                self.mario_rect.top += self.mario_speed
                 # restricao do limite superior
-                if (self.mario_rect.top + self.mario_speed.j) <= 0: 
-                    self.mario_speed = Vector(0, 0)
+                if (self.mario_rect.top + self.mario_speed) <= 0: 
+                    self.mario_speed = 0
                 if self.collision_detect():
                     self.game_mode = 4
         
@@ -280,7 +275,7 @@ class Game:
                         screen.blit(medals, (340, 225), (240,0,80,100))
                 else:
                     self.mario_speed += gravity
-                    self.mario_rect.top += self.mario_speed.j
+                    self.mario_rect.top += self.mario_speed
             pygame.display.update()
 
 if __name__ == "__main__":
