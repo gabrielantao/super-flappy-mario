@@ -21,6 +21,7 @@ HEIGHT = 600
 WHITE = (255,255,255)
 BLACK = (0,0,0)
 GND_HEIGHT = 80 # altura do chao
+FPS = 30 # maximo frames por segundo
 # TODO: alterar quando modular o delta tempo (time-based)
 GRAVITY = 1 # valor da gravidade 
 
@@ -57,14 +58,14 @@ scroll = -5
 
 class Game:
     """
-    1 modo inicial; 
-    2 preparacao para o jogo (get ready); 
-    3 rodando jogo; 
-    4 game over (placar e medalha)
+    0 modo inicial; 
+    1 preparacao para o jogo (get ready); 
+    2 rodando jogo; 
+    3 game over (placar e medalha)
     """
     def __init__(self):
         self.pipe_list = []
-        self.game_mode = 1
+        self.game_mode = 0
         self.score = 0    #pontos
         self.best_score = 0 
         self.ground_pos = 0
@@ -99,17 +100,17 @@ class Game:
     # TODO: ajustar valores da velocidade (-1,-2,-3) 
     def set_scroll_speed(self):
         if self.level == 0 or self.level == 1:
-            self.scroll_speed = -1
+            self.scroll_speed = -10
         elif self.level == 2:
-            self.scroll_speed = -2
+            self.scroll_speed = -20
         elif self.level == 3:
-            self.scroll_speed = -3
+            self.scroll_speed = -30
             
     # movimenta os tubos
-    def scroll_pipe(self):
+    def scroll_pipe(self, seconds):
         for pipe in self.pipe_list:
-            pipe[0].x += scroll 
-            pipe[1].x += scroll 
+            pipe[0].x += scroll##self.scroll_speed * seconds 
+            pipe[1].x += scroll##self.scroll_speed * seconds
             
     # desenha os tubos
     def draw_pipe(self):
@@ -175,53 +176,59 @@ class Game:
         self.mario_speed =  0
         
     def start(self):
+        logfile = open("logfile.csv", "a")
+        logwriter = csv.writer(logfile)
+        game_mode_list = ["easy", "moderate", "hard", "veryhard"]
         hammer_counter = 0
         cursor1_pos = 0
         cursor2_pos = 0
+        playtime = 0 # tempo jogado por partida
         while True:
-            clock.tick(30)
+            milliseconds = clock.tick(FPS)  # milisegundos passados desde ultimo frame
+            seconds = milliseconds/1000.0 # tempo em segundos
             screen.fill(WHITE)
             for event in pygame.event.get():
                 if event.type == QUIT:
+                    logfile.close()
                     pygame.quit()
                     sys.exit()
                 if event.type == KEYDOWN:
                     # gerencia a troca de modos de jogo quando o espaco eh apertado
                     if event.key == K_SPACE:
-                        if self.game_mode == 2:
-                            self.game_mode = 3
-                        elif self.game_mode == 3:
+                        if self.game_mode == 1:
+                            self.game_mode = 2
+                        elif self.game_mode == 2:
                             self.mario_speed -= 13
                     # gerencia a troca de modos de jogo quando o enter eh apertado
                     if event.key == K_RETURN or event.key == K_KP_ENTER :
-                        if self.game_mode == 1:
+                        if self.game_mode == 0:
                             self.level = cursor1_pos
                             self.set_scroll_speed()
-                            self.game_mode = 2
-                        elif self.game_mode == 4:
+                            self.game_mode = 1
+                        elif self.game_mode == 3:
                             if cursor2_pos == 0: #PLAY AGAIN? <YES>
-                                self.game_mode = 2
-                            else: #PLAY AGAIN? <NO>
                                 self.game_mode = 1
+                            else: #PLAY AGAIN? <NO>
                                 cursor2_pos = 0
+                                self.game_mode = 0
                             self.reset()
                     if event.key == K_UP:
-                        if self.game_mode == 1 and cursor1_pos > 0:
+                        if self.game_mode == 0 and cursor1_pos > 0:
                             cursor1_pos -= 1
-                        if self.game_mode == 4 and cursor2_pos > 0:
+                        if self.game_mode == 3 and cursor2_pos > 0:
                             cursor2_pos -= 1
                     if event.key == K_DOWN:
-                        if self.game_mode == 1 and cursor1_pos < 3:
+                        if self.game_mode == 0 and cursor1_pos < 3:
                             cursor1_pos += 1
-                        if self.game_mode == 4 and cursor2_pos < 1:
+                        if self.game_mode == 3 and cursor2_pos < 1:
                             cursor2_pos += 1
                         
         #-----------------------------------------------------------------------
         # GERENCIA OS MODOS DE JOGO
         # 1 modo inicial; 2 preparacao para o jogo; 3 rodando jogo; 4 game over
         #-----------------------------------------------------------------------
-            # MODO DE JOGO 1: MODO INICIAL
-            if self.game_mode == 1: 
+            # MODO DE JOGO 0: MODO INICIAL
+            if self.game_mode == 0: 
                 self.draw_parallax()
                 self.draw_ground()
                 self.scroll_ground()              
@@ -231,8 +238,8 @@ class Game:
                 screen.blit(signature, (250, 550))
                 screen.blit(cursor_img, (370, 300 + 25*cursor1_pos)) 
            
-            # MODO DE JOGO 2: PREPARACAO (GET READY)
-            elif self.game_mode == 2:
+            # MODO DE JOGO 1: PREPARACAO (GET READY)
+            elif self.game_mode == 1:
                 self.draw_parallax()
                 self.draw_ground()
                 self.draw_mario()
@@ -247,10 +254,8 @@ class Game:
                 screen.blit(mario_hammer,  (420, 390), (60*(hammer_counter//5), 0, 60, 100))
                 hammer_counter += 1
         
-            # MODO DE JOGO 3: RODANDO O JOGO EM SI
-            elif self.game_mode == 3:
-                # TODO: AQUI MUDAR OS VALORES DAS DISTANCIAS PARA MODULAR A DIFICULDADE
-                # TODO: ajustar os criterios as medidas de como adiciona os tubos 
+            # MODO DE JOGO 2: RODANDO O JOGO EM SI
+            elif self.game_mode == 2:
                 # gera obstaculos 
                 if len(self.pipe_list) == 0 or self.pipe_list[-1][0].x == (WIDTH - self.gap_width):
                     self.create_pipe()
@@ -266,7 +271,7 @@ class Game:
                 text = large_font.render(str(self.score), True, WHITE)
                 screen.blit(text, (WIDTH/2 - 20, 28))
                 self.scroll_ground()
-                self.scroll_pipe()
+                self.scroll_pipe(seconds)
                 self.update_score()
                 # atualiza posicao do mario e do rect 
                 self.mario_speed += GRAVITY
@@ -275,10 +280,14 @@ class Game:
                 if (self.mario_rect.top + self.mario_speed) <= 0: 
                     self.mario_speed = 0
                 if self.collision_detect():
-                    self.game_mode = 4
+                    # registra linha com dados da jogada
+                    logwriter.writerow([game_mode_list[self.level],  self.score, round(playtime, 3)])
+                    playtime = 0
+                    self.game_mode = 3
+                playtime += seconds
         
-            # MODO DE JOGO 4: TELA DE PONTUACAO E GAME OVER
-            elif self.game_mode == 4:
+            # MODO DE JOGO 3: TELA DE PONTUACAO E GAME OVER
+            elif self.game_mode == 3:
                 self.draw_parallax()
                 self.draw_pipe()
                 self.draw_ground()
