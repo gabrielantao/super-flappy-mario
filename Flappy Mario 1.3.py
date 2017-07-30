@@ -12,6 +12,7 @@
 import sys
 import random
 import csv
+import datetime
 import pygame
 from pygame.locals import *
 pygame.init()
@@ -72,7 +73,12 @@ class Game:
         self.mario_rect = pygame.Rect(50,200,40,40)  
         self.mario_speed = 0  
         self.level = 0 
-        
+        self.scroll_speed = -100
+        if not os.path.isfile("logfile.csv"):
+            with open("logfile.csv", "w") as logfile:
+                logwriter = csv.writer(logfile)
+                logwriter.writerow(["start", "end", "level", "score", "time"])
+                
     # cria dos rects dos tubos
     # obs: modula gaps (vertical e horizontal)
     def create_pipe(self):
@@ -83,16 +89,17 @@ class Game:
             self.gap_width = 300
             gap_height = 140
         elif self.level == 2:
-            self.gap_width = random.randrange(250, 401, 50)
+            self.gap_width = random.randrange(300, 401, 100)
             gap_height = 140
         elif self.level == 3:
-            self.gap_width = random.randrange(200, 301, 50)
+            self.gap_width = random.randrange(250, 351, 50)
             gap_height = random.randrange(120, 201, 40)
         width = pipe_img.get_width()
         height = random.randrange(0, HEIGHT - gap_height, 20)
         up_pipe = pygame.Rect(WIDTH, 0, width, height)
         down_pipe = pygame.Rect(WIDTH, height + gap_height, width, HEIGHT - height - gap_height - GND_HEIGHT)
-        self.pipe_list.append([up_pipe, down_pipe])
+        gap_rect = pygame.Rect(WIDTH, height, width, gap_height)
+        self.pipe_list.append([up_pipe, down_pipe, gap_rect])
 
     # seleciona velocidade dos tubos
     # obs: modula velocidade
@@ -100,17 +107,18 @@ class Game:
     # TODO: ajustar valores da velocidade (-1,-2,-3) 
     def set_scroll_speed(self):
         if self.level == 0 or self.level == 1:
-            self.scroll_speed = -10
+            self.scroll_speed = -160
         elif self.level == 2:
-            self.scroll_speed = -20
+            self.scroll_speed = -200
         elif self.level == 3:
-            self.scroll_speed = -30
+            self.scroll_speed = -250 
             
     # movimenta os tubos
     def scroll_pipe(self, seconds):
         for pipe in self.pipe_list:
-            pipe[0].x += scroll##self.scroll_speed * seconds 
-            pipe[1].x += scroll##self.scroll_speed * seconds
+            pipe[0].x += self.scroll_speed * seconds 
+            pipe[1].x += self.scroll_speed * seconds
+            pipe[2].x += self.scroll_speed * seconds #gap
             
     # desenha os tubos
     def draw_pipe(self):
@@ -128,9 +136,13 @@ class Game:
         (self.mario_rect.bottom + self.mario_speed) >= (HEIGHT - GND_HEIGHT)
          
     # atualiza a pontos e desenha o score
-    def update_score(self):
-        if self.pipe_list[0][0].x == -50: #conseguiu passar pelo tubo
-            self.score += 1
+    def update_score(self, last_state):
+        if self.mario_rect.colliderect(self.pipe_list[0][2]): #conseguiu passar pelo tubo
+            passing_gap = True
+        else: 
+            if passing_gap:
+                passing_gap = True
+                self.score += 1
        
     # desenha pontos
     def draw_score(self):
@@ -139,8 +151,8 @@ class Game:
         screen.blit(texto, (WIDTH/2 - 20, 28))
         
     # desliza o ground e parallax
-    def scroll_ground(self):
-        self.ground_pos += scroll
+    def scroll_ground(self, seconds):
+        self.ground_pos += self.scroll_speed * seconds
         if self.ground_pos < -WIDTH:
             self.ground_pos = 0
         
@@ -196,6 +208,8 @@ class Game:
                     # gerencia a troca de modos de jogo quando o espaco eh apertado
                     if event.key == K_SPACE:
                         if self.game_mode == 1:
+                            passing_gap = False # mario esta no gap?
+                            start_datetime = "{:%Y-%b-%d %H:%M:%S}".format(datetime.datetime.now())
                             self.game_mode = 2
                         elif self.game_mode == 2:
                             self.mario_speed -= 13
@@ -231,7 +245,7 @@ class Game:
             if self.game_mode == 0: 
                 self.draw_parallax()
                 self.draw_ground()
-                self.scroll_ground()              
+                self.scroll_ground(seconds)              
                 # desenha o titulo, level e assinatura
                 screen.blit(game_title,  (50, 50))
                 screen.blit(level_img, (400,300))
@@ -243,7 +257,7 @@ class Game:
                 self.draw_parallax()
                 self.draw_ground()
                 self.draw_mario()
-                self.scroll_ground()
+                self.scroll_ground(seconds)
                 # desenha instrucoes
                 screen.blit(get_ready,  (300, 100))
                 # desenha animacao do mario
@@ -257,11 +271,12 @@ class Game:
             # MODO DE JOGO 2: RODANDO O JOGO EM SI
             elif self.game_mode == 2:
                 # gera obstaculos 
-                if len(self.pipe_list) == 0 or self.pipe_list[-1][0].x == (WIDTH - self.gap_width):
+                if len(self.pipe_list) == 0 or self.pipe_list[-1][0].x < (WIDTH - self.gap_width):
                     self.create_pipe()
-                # remove obstaculos que 
+                # remove obstaculos que sairem da tela
                 if self.pipe_list[0][0].x < -pipe_img.get_width():
                     self.pipe_list.remove(self.pipe_list[0])
+                  ###  self.score += 1
                 self.draw_parallax()
                 self.draw_pipe()
                 self.draw_ground()
@@ -270,9 +285,16 @@ class Game:
                 screen.blit(score_img, (WIDTH/2 - 50, 10))
                 text = large_font.render(str(self.score), True, WHITE)
                 screen.blit(text, (WIDTH/2 - 20, 28))
-                self.scroll_ground()
+                self.scroll_ground(seconds)
                 self.scroll_pipe(seconds)
-                self.update_score()
+                ###self.update_score(passing_gap)
+                # atualiza o placar
+                if self.pipe_list[0][2].contains(self.mario_rect): 
+                    passing_gap = True
+                else: 
+                    if passing_gap:
+                        passing_gap = False
+                        self.score += 1
                 # atualiza posicao do mario e do rect 
                 self.mario_speed += GRAVITY
                 self.mario_rect.top += self.mario_speed
@@ -281,7 +303,9 @@ class Game:
                     self.mario_speed = 0
                 if self.collision_detect():
                     # registra linha com dados da jogada
-                    logwriter.writerow([game_mode_list[self.level],  self.score, round(playtime, 3)])
+                    #level, ponto, tempo, dia, inicio, termino  
+                    end_datetime = "{:%Y-%b-%d %H:%M:%S}".format(datetime.datetime.now())
+                    logwriter.writerow([start_datetime, end_datetime, game_mode_list[self.level], self.score, round(playtime, 3)])
                     playtime = 0
                     self.game_mode = 3
                 playtime += seconds
