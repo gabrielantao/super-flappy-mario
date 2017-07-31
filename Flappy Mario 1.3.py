@@ -23,8 +23,7 @@ WHITE = (255,255,255)
 BLACK = (0,0,0)
 GND_HEIGHT = 80 # altura do chao
 FPS = 30 # maximo frames por segundo
-# TODO: alterar quando modular o delta tempo (time-based)
-GRAVITY = 1 # valor da gravidade 
+GRAVITY = 500 # valor da gravidade 
 
 # cria o clock
 clock = pygame.time.Clock()
@@ -53,9 +52,6 @@ play_again = pygame.image.load("images/play_again.png")
 
 large_font = pygame.font.Font("fonts/Super_Mario_World.ttf", 32)
 small_font = pygame.font.Font("fonts/Super_Mario_World.ttf", 20)
-
-# cria vetores
-scroll = -5
 
 class Game:
     """
@@ -95,7 +91,7 @@ class Game:
             self.gap_width = random.randrange(250, 351, 50)
             gap_height = random.randrange(120, 201, 40)
         width = pipe_img.get_width()
-        height = random.randrange(0, HEIGHT - gap_height, 20)
+        height = random.randrange(20, HEIGHT - gap_height, 20)
         up_pipe = pygame.Rect(WIDTH, 0, width, height)
         down_pipe = pygame.Rect(WIDTH, height + gap_height, width, HEIGHT - height - gap_height - GND_HEIGHT)
         gap_rect = pygame.Rect(WIDTH, height, width, gap_height)
@@ -103,8 +99,6 @@ class Game:
 
     # seleciona velocidade dos tubos
     # obs: modula velocidade
-    # TODO: ativar ele no loop de controle de selecao de dificuldade
-    # TODO: ajustar valores da velocidade (-1,-2,-3) 
     def set_scroll_speed(self):
         if self.level == 0 or self.level == 1:
             self.scroll_speed = -160
@@ -133,7 +127,7 @@ class Game:
         # colide com um tubo (cima, baixo) e chao
         return self.mario_rect.colliderect(self.pipe_list[0][0]) or \
         self.mario_rect.colliderect(self.pipe_list[0][1]) or \
-        (self.mario_rect.bottom + self.mario_speed) >= (HEIGHT - GND_HEIGHT)
+        self.mario_rect.bottom >= (HEIGHT - GND_HEIGHT)
          
     # atualiza a pontos e desenha o score
     def update_score(self, last_state):
@@ -166,11 +160,11 @@ class Game:
         if live:
             if self.mario_speed <= 0:
                 screen.blit(mario_sprite, (self.mario_rect.left, self.mario_rect.top-20), (0,0,40,60))
-            if 0 < self.mario_speed < 15:
+            if 0 < self.mario_speed <= 200:
                 screen.blit(mario_sprite, (self.mario_rect.left, self.mario_rect.top-20), (40,0,40,60))
-            if 15 < self.mario_speed < 24:
+            if 200 < self.mario_speed <= 480:
                 screen.blit(mario_sprite, (self.mario_rect.left, self.mario_rect.top-20), (80,0,40,60))
-            if self.mario_speed > 24:
+            if self.mario_speed > 480:
                 screen.blit(mario_sprite, (self.mario_rect.left, self.mario_rect.top-20), (120,0,40,60))
         else:
             screen.blit(mario_sprite, (self.mario_rect.left, self.mario_rect.top-20), (160,0,40,60))
@@ -208,11 +202,12 @@ class Game:
                     # gerencia a troca de modos de jogo quando o espaco eh apertado
                     if event.key == K_SPACE:
                         if self.game_mode == 1:
-                            passing_gap = False # mario esta no gap?
                             start_datetime = "{:%Y-%b-%d %H:%M:%S}".format(datetime.datetime.now())
+                            passing_gap = False # mario esta no gap?
+                            playtime = 0
                             self.game_mode = 2
                         elif self.game_mode == 2:
-                            self.mario_speed -= 13
+                            self.mario_speed -= 250
                     # gerencia a troca de modos de jogo quando o enter eh apertado
                     if event.key == K_RETURN or event.key == K_KP_ENTER :
                         if self.game_mode == 0:
@@ -225,6 +220,7 @@ class Game:
                             else: #PLAY AGAIN? <NO>
                                 cursor2_pos = 0
                                 self.game_mode = 0
+                            playtime = 0
                             self.reset()
                     if event.key == K_UP:
                         if self.game_mode == 0 and cursor1_pos > 0:
@@ -239,7 +235,7 @@ class Game:
                         
         #-----------------------------------------------------------------------
         # GERENCIA OS MODOS DE JOGO
-        # 1 modo inicial; 2 preparacao para o jogo; 3 rodando jogo; 4 game over
+        # 0 modo inicial; 1 preparacao para o jogo; 2 rodando jogo; 3 game over
         #-----------------------------------------------------------------------
             # MODO DE JOGO 0: MODO INICIAL
             if self.game_mode == 0: 
@@ -261,13 +257,15 @@ class Game:
                 # desenha instrucoes
                 screen.blit(get_ready,  (300, 100))
                 # desenha animacao do mario
-                # TODO: ajustar o tempo da animacao do martelo
-                if hammer_counter > 25:
+                screen.blit(mario_hammer,  (420, 390), (60*hammer_counter, 0, 60, 100))
+                if playtime > .1:
+                    hammer_counter += 1
+                    playtime = 0
+                if hammer_counter == 5:
                     screen.blit(crush,  (430, 370))
                     hammer_counter = 0
-                screen.blit(mario_hammer,  (420, 390), (60*(hammer_counter//5), 0, 60, 100))
-                hammer_counter += 1
-        
+                playtime += seconds
+                
             # MODO DE JOGO 2: RODANDO O JOGO EM SI
             elif self.game_mode == 2:
                 # gera obstaculos 
@@ -276,7 +274,6 @@ class Game:
                 # remove obstaculos que sairem da tela
                 if self.pipe_list[0][0].x < -pipe_img.get_width():
                     self.pipe_list.remove(self.pipe_list[0])
-                  ###  self.score += 1
                 self.draw_parallax()
                 self.draw_pipe()
                 self.draw_ground()
@@ -287,7 +284,6 @@ class Game:
                 screen.blit(text, (WIDTH/2 - 20, 28))
                 self.scroll_ground(seconds)
                 self.scroll_pipe(seconds)
-                ###self.update_score(passing_gap)
                 # atualiza o placar
                 if self.pipe_list[0][2].contains(self.mario_rect): 
                     passing_gap = True
@@ -295,18 +291,16 @@ class Game:
                     if passing_gap:
                         passing_gap = False
                         self.score += 1
-                # atualiza posicao do mario e do rect 
-                self.mario_speed += GRAVITY
-                self.mario_rect.top += self.mario_speed
                 # restricao do limite superior
-                if (self.mario_rect.top + self.mario_speed) <= 0: 
+                if self.mario_rect.top <= 0 and self.mario_speed < 0: 
                     self.mario_speed = 0
+                # atualiza posicao do mario e do rect 
+                self.mario_speed += GRAVITY * seconds 
+                self.mario_rect.top += self.mario_speed * seconds 
                 if self.collision_detect():
                     # registra linha com dados da jogada
-                    #level, ponto, tempo, dia, inicio, termino  
                     end_datetime = "{:%Y-%b-%d %H:%M:%S}".format(datetime.datetime.now())
                     logwriter.writerow([start_datetime, end_datetime, game_mode_list[self.level], self.score, round(playtime, 3)])
-                    playtime = 0
                     self.game_mode = 3
                 playtime += seconds
         
@@ -330,10 +324,7 @@ class Game:
                         self.best_score = self.score
                     text = large_font.render(str(self.best_score), True, BLACK)
                     screen.blit(text, (600, 290))
-                   ### text = small_font.render("press enter to play again", True, BLACK)
-                   ### screen.blit(text, (300, 550))
                     # mostra medalha correspondente 20, 40, 60, 80
-                    # TODO: mecher na modulacao da dificuldade (sistema de recompensa)
                     if self.score > 20 : #bronze
                         screen.blit(medals, (340, 225), (0,0,80,100))
                     if self.score > 40: #prata
@@ -346,8 +337,8 @@ class Game:
                     screen.blit(play_again, (300, 400))
                     screen.blit(cursor_img, (580, 405 + 30*cursor2_pos))
                 else:
-                    self.mario_speed += GRAVITY
-                    self.mario_rect.top += self.mario_speed
+                    self.mario_speed += GRAVITY * seconds
+                    self.mario_rect.top += self.mario_speed * seconds
             pygame.display.update()
 
 if __name__ == "__main__":
