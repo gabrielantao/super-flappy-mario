@@ -193,7 +193,7 @@ class Game:
         cursor1_pos = 0
         cursor2_pos = 0
         playtime = 0 # tempo jogado por partida
-        change_music("Title Theme.mp3")
+        change_music("Title Theme.ogg")
         while True:
             milliseconds = clock.tick(FPS)  # milisegundos passados desde ultimo frame
             seconds = milliseconds/1000.0 # tempo em segundos
