@@ -37,7 +37,6 @@ background = pygame.image.load("images/parallax.png")
 ground  = pygame.image.load("images/ground.png")
 score_img = pygame.image.load("images/mario_score.png")
 game_title = pygame.image.load("images/game_title.png")
-start_button = pygame.image.load("images/start_button.png")
 mario_hammer = pygame.image.load("images/mario_hammer.png")
 crush = pygame.image.load("images/crush.png")
 get_ready = pygame.image.load("images/get_ready.png")
@@ -53,6 +52,11 @@ play_again = pygame.image.load("images/play_again.png")
 large_font = pygame.font.Font("fonts/Super_Mario_World.ttf", 32)
 small_font = pygame.font.Font("fonts/Super_Mario_World.ttf", 20)
 
+def change_music(new_music, loops=-1):
+    pygame.mixer.music.stop()
+    pygame.mixer.music.load("sound/{}".format(new_music))
+    pygame.mixer.music.play(loops)
+    
 class Game:
     """
     0 modo inicial; 
@@ -189,6 +193,7 @@ class Game:
         cursor1_pos = 0
         cursor2_pos = 0
         playtime = 0 # tempo jogado por partida
+        change_music("Title Theme.mp3")
         while True:
             milliseconds = clock.tick(FPS)  # milisegundos passados desde ultimo frame
             seconds = milliseconds/1000.0 # tempo em segundos
@@ -211,13 +216,16 @@ class Game:
                     # gerencia a troca de modos de jogo quando o enter eh apertado
                     if event.key == K_RETURN or event.key == K_KP_ENTER :
                         if self.game_mode == 0:
+                            change_music("Overworld Theme.ogg")
                             self.level = cursor1_pos
                             self.set_scroll_speed()
                             self.game_mode = 1
                         elif self.game_mode == 3:
                             if cursor2_pos == 0: #PLAY AGAIN? <YES>
+                                change_music("Overworld Theme.ogg")
                                 self.game_mode = 1
                             else: #PLAY AGAIN? <NO>
+                                change_music("Title Theme.ogg")
                                 cursor2_pos = 0
                                 self.game_mode = 0
                             playtime = 0
@@ -301,6 +309,7 @@ class Game:
                     # registra linha com dados da jogada
                     end_datetime = "{:%Y-%b-%d %H:%M:%S}".format(datetime.datetime.now())
                     logwriter.writerow([start_datetime, end_datetime, game_mode_list[self.level], self.score, round(playtime, 3)])
+                    change_music("Life Lost.ogg", 0)
                     self.game_mode = 3
                 playtime += seconds
         
